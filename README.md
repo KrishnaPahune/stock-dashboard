@@ -61,8 +61,9 @@ This project focuses on handling inconsistent financial data structures and prov
 ```bash
 cd stock-dashboard
 venv\Scripts\activate
-uvicorn app.main:app --reload```
+uvicorn app.main:app --reload
 
+```md
 ## 📊 Dashboard Overview
 ![Dashboard Overview](frontend/public/dashboard-1.png)
 
