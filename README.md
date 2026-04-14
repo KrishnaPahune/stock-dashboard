@@ -62,3 +62,12 @@ This project focuses on handling inconsistent financial data structures and prov
 cd stock-dashboard
 venv\Scripts\activate
 uvicorn app.main:app --reload
+
+## 📊 Dashboard Overview
+![Dashboard Overview](frontend/public/dashboard-1.png)
+
+## 📈 Stock Comparison
+![Stock Comparison](frontend/public/dashboard-2.png)
+
+## 📈 Stock Comparison
+![Stock Comparison](frontend/public/dashboard-3.png)

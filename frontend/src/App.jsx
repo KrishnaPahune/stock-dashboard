@@ -17,7 +17,8 @@ function App() {
   const [stock1, setStock1] = useState(null);
   const [stock2, setStock2] = useState(null);
   const [chartData, setChartData] = useState(null);
-  const [summary, setSummary] = useState(null);
+  const [summary1, setSummary1] = useState(null);
+  const [summary2, setSummary2] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -28,8 +29,10 @@ function App() {
       .catch(() => setError("⚠️ Failed to load companies"));
   }, []);
 
-  // Fetch and compare data
+  // Fetch stock data
   const fetchData = async (symbol1, symbol2 = null) => {
+    if (!symbol1) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -44,10 +47,10 @@ function App() {
       const labels = data1.map(item => item.Date);
       const closeKey = Object.keys(data1[0]).find(k => k.includes("Close"));
 
-      // 🔥 % Change calculation
-      const latest = data1[data1.length - 1][closeKey];
-      const previous = data1[data1.length - 2][closeKey];
-      const percentChange = (((latest - previous) / previous) * 100).toFixed(2);
+      // % Change stock1
+      const latest1 = data1[data1.length - 1][closeKey];
+      const previous1 = data1[data1.length - 2][closeKey];
+      const percentChange1 = (((latest1 - previous1) / previous1) * 100).toFixed(2);
 
       const dataset = [
         {
@@ -56,6 +59,11 @@ function App() {
           borderWidth: 2,
         }
       ];
+
+      setSummary1(prev => ({
+        ...prev,
+        percent_change: percentChange1
+      }));
 
       if (symbol2) {
         const res2 = await axios.get(`http://127.0.0.1:8000/data/${symbol2}`);
@@ -68,18 +76,22 @@ function App() {
           data: data2.map(item => item[closeKey2]),
           borderWidth: 2,
         });
+
+        // % Change stock2
+        const latest2 = data2[data2.length - 1][closeKey2];
+        const previous2 = data2[data2.length - 2][closeKey2];
+        const percentChange2 = (((latest2 - previous2) / previous2) * 100).toFixed(2);
+
+        setSummary2(prev => ({
+          ...prev,
+          percent_change: percentChange2
+        }));
       }
 
       setChartData({
         labels,
         datasets: dataset,
       });
-
-      // Merge summary + % change
-      setSummary(prev => ({
-        ...prev,
-        percent_change: percentChange
-      }));
 
     } catch (err) {
       console.error(err);
@@ -91,14 +103,19 @@ function App() {
   };
 
   // Fetch summary
-  const fetchSummary = async (symbol) => {
+  const fetchSummary = async (symbol, type) => {
     try {
       const res = await axios.get(`http://127.0.0.1:8000/summary/${symbol}`);
-      setSummary(res.data);
+
+      if (type === "stock1") {
+        setSummary1(res.data);
+      } else {
+        setSummary2(res.data);
+      }
+
     } catch (err) {
       console.error(err);
       setError("⚠️ Failed to fetch summary.");
-      setSummary(null);
     }
   };
 
@@ -118,7 +135,6 @@ function App() {
         borderRadius: "10px",
         boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
       }}>
-        {/* 🔥 Title */}
         <h1 style={{ textAlign: "center" }}>
           📊 Stock Intelligence Dashboard
         </h1>
@@ -134,10 +150,10 @@ function App() {
               const s = e.target.value;
               setStock1(s);
               fetchData(s, stock2);
-              fetchSummary(s);
+              fetchSummary(s, "stock1");
             }}
           >
-            <option>Select Stock 1</option>
+            <option value="">Select Stock 1</option>
             {companies.map((c, i) => (
               <option key={i} value={c.symbol}>{c.name}</option>
             ))}
@@ -147,11 +163,21 @@ function App() {
             disabled={loading}
             onChange={(e) => {
               const s = e.target.value;
+
+              if (!s) {
+                // reset stock2
+                setStock2(null);
+                setSummary2(null);
+                if (stock1) fetchData(stock1);
+                return;
+              }
+
               setStock2(s);
               if (stock1) fetchData(stock1, s);
+              fetchSummary(s, "stock2");
             }}
           >
-            <option>Select Stock 2 (optional)</option>
+            <option value="">None</option>
             {companies.map((c, i) => (
               <option key={i} value={c.symbol}>{c.name}</option>
             ))}
@@ -174,34 +200,64 @@ function App() {
         </div>
 
         {/* Summary */}
-        {summary && (
+        {summary1 && (
           <div style={{
             marginTop: "20px",
             padding: "15px",
             background: "#f0f4f8",
             borderRadius: "8px"
           }}>
-            <h3>📌 Summary</h3>
-            <p>52 Week High: {summary["52_week_high"]}</p>
-            <p>52 Week Low: {summary["52_week_low"]}</p>
-            <p>Average Close: {summary["average_close"]}</p>
+            <h3>📌 Comparison Summary</h3>
 
-            {/* 🔥 % Change */}
-            {summary.percent_change && (
-              <p>
-                Daily Change:
-                <span style={{
-                  color: summary.percent_change >= 0 ? "green" : "red",
-                  marginLeft: "5px"
-                }}>
-                  {summary.percent_change}%
-                </span>
-              </p>
-            )}
+            <table style={{ width: "100%", marginTop: "10px", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>{stock1}</th>
+                  {stock2 && summary2 && <th>{stock2}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>52W High</b></td>
+                  <td>{summary1["52_week_high"]}</td>
+                  {stock2 && summary2 && <td>{summary2["52_week_high"]}</td>}
+                </tr>
+
+                <tr>
+                  <td><b>52W Low</b></td>
+                  <td>{summary1["52_week_low"]}</td>
+                  {stock2 && summary2 && <td>{summary2["52_week_low"]}</td>}
+                </tr>
+
+                <tr>
+                  <td><b>Avg Close</b></td>
+                  <td>{summary1["average_close"]}</td>
+                  {stock2 && summary2 && <td>{summary2["average_close"]}</td>}
+                </tr>
+
+                <tr>
+                  <td><b>Daily Change</b></td>
+
+                  <td style={{
+                    color: summary1?.percent_change >= 0 ? "green" : "red"
+                  }}>
+                    {summary1?.percent_change ? summary1.percent_change + "%" : "-"}
+                  </td>
+
+                  {stock2 && summary2 && (
+                    <td style={{
+                      color: summary2?.percent_change >= 0 ? "green" : "red"
+                    }}>
+                      {summary2?.percent_change ? summary2.percent_change + "%" : "-"}
+                    </td>
+                  )}
+                </tr>
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* 🔥 Footer */}
         <p style={{
           textAlign: "center",
           marginTop: "30px",
